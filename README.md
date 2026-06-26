@@ -6,17 +6,19 @@
 
 <p align="center">
   A Desktop Application for Managing Multiple OpenAI <a href="https://github.com/openai/codex">Codex</a> Accounts<br>
-  Easily switch between accounts, monitor usage limits, and stay in control of your quota
+  Easily switch between accounts, monitor usage, schedule warm-ups, and stay in control of your quota
 </p>
 
 ## Features
 
 - **Multi-Account Management** – Add, rename, mask, import, export, and manage multiple Codex accounts in one place
 - **Quick Switching** – Switch between accounts from the main window, native tray menu, or tray popup
-- **Automatic Warm-Up** – Warm up one account or all accounts manually, or let scheduled auto warm-up activate each new 5-hour reset window for you
-- **System Tray Controls** – Use the tray popup to switch accounts, inspect quota, refresh usage, open the main window, or quit the app
+- **Usage Stats** – View account usage stats for OAuth accounts, including lifetime tokens, daily buckets, streaks, activity insights, and top integrations
+- **Manual Reset Credits** – See available manual reset credits beside each account plan badge, with the closest expiry highlighted as it approaches
+- **Automatic Warm-Up** – Warm up one account or all accounts manually, after each 5-hour reset window, or at specific scheduled times of day
+- **System Tray Controls** – Use the tray popup to switch accounts, inspect quota and active-account stats, refresh usage, open the main window, or quit the app
 - **Tray Display Modes** – Choose between the app icon with session percentage, a text-only hourly/weekly percentage display, or a hidden tray icon
-- **Usage Monitoring** – View real-time 5-hour session and weekly usage, reset timing, credits, and subscription expiry
+- **Rate-Limit Monitoring** – View real-time 5-hour session and weekly usage, reset timing, credits, and subscription expiry
 - **Blocked Switch Recovery** – Detect running Codex sessions and offer a force-close flow before retrying the account switch
 - **Dual Login Mode** – Authenticate with ChatGPT OAuth or import existing `auth.json` files
 
@@ -96,6 +98,25 @@ Optional environment variables:
 
 The browser dashboard serves the same UI and backend actions through `/api/invoke/*`, which makes it usable over LAN, Tailscale, or a remote host tunnel when you expose the chosen port safely.
 
+## Usage and Reset Credits
+
+Codex Switcher shows two kinds of account usage information:
+
+- **Rate limits** – the account card shows the current 5-hour and weekly limit
+  windows, remaining percentage, reset timing, credit balance, and subscription
+  expiry when available.
+- **Usage Stats** – ChatGPT OAuth accounts can expand the **Usage
+  Stats** panel to view stats such as lifetime tokens,
+  today, last 7 days, last 30 days, streaks, longest task, token activity,
+  reasoning/activity insights, and most-used integrations. The active account
+  opens this panel by default; other accounts keep it collapsed until needed.
+- **Manual reset credits** – OAuth accounts with available reset credits show a
+  compact badge next to the plan badge. It includes the available count and the
+  closest expiry date, hides zero-count results, and turns amber within 10 days
+  or red within 3 days of expiry.
+
+The tray popup also includes compact active-account stats for today and
+the last 7 days, while keeping the normal rate-limit refresh flow separate.
 
 ## Warm-Up
 
@@ -110,6 +131,10 @@ window starts counting — handy for activating a window before you need it.
   the **Timed** control in the main window. At each time the app warms all
   accounts (skipping any whose weekly limit is exhausted), so you control when
   your 5-hour windows start instead of letting them drift.
+
+Timed warm-up checks the schedule every 30 seconds, runs each configured minute
+only once per day, and skips missed times if the machine was asleep instead of
+warming accounts late.
 
 On macOS you can keep the machine awake with the built-in `caffeinate` command,
 which stops automatically when the app quits:
