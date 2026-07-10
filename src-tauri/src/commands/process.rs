@@ -490,12 +490,15 @@ fn find_windows_codex_processes() -> anyhow::Result<(Vec<u32>, usize)> {
     // the command line and only count live top-level app instances.
     const POWERSHELL_SCRIPT: &str = r#"
 $windowTitles = @{}
-Get-Process -Name Codex -ErrorAction SilentlyContinue | ForEach-Object {
+Get-Process -Name Codex, ChatGPT -ErrorAction SilentlyContinue | ForEach-Object {
   $windowTitles[[uint32]$_.Id] = $_.MainWindowTitle
 }
 
 Get-CimInstance Win32_Process |
-  Where-Object { $_.Name -ieq 'Codex.exe' -or $_.Name -ieq 'codex.exe' } |
+  Where-Object {
+    $_.Name -ieq 'Codex.exe' -or
+    $_.Name -ieq 'ChatGPT.exe'
+  } |
   ForEach-Object {
     [PSCustomObject]@{
       Name = $_.Name
@@ -600,10 +603,24 @@ fn is_windows_codex_root_process(process: &WindowsCodexProcess) -> bool {
     let name = process.name.to_ascii_lowercase();
     let command = process.command_line.to_ascii_lowercase();
 
-    name == "codex.exe"
-        && !command.contains("codex-switcher")
-        && !command.contains("--type=")
-        && !command.contains("resources\\codex.exe")
+    if command.contains("--type=") {
+        return false;
+    }
+
+    match name.as_str() {
+        "codex.exe" => {
+            !command.contains("codex-switcher") && !command.contains("resources\\codex.exe")
+        }
+        "chatgpt.exe" => is_windows_codex_desktop_chatgpt_process(&command),
+        _ => false,
+    }
+}
+
+#[cfg(windows)]
+fn is_windows_codex_desktop_chatgpt_process(command: &str) -> bool {
+    let command = command.replace('/', "\\");
+
+    command.contains("\\openai.codex_") && command.contains("\\app\\chatgpt.exe")
 }
 
 #[cfg(any(unix, windows))]
@@ -654,6 +671,38 @@ mod tests {
         assert!(!super::is_windows_codex_shortcut_name("Codex Switcher.lnk"));
         assert!(!super::is_windows_codex_shortcut_name("codex-switcher.lnk"));
         assert!(!super::is_windows_codex_shortcut_name("Codex.txt"));
+    }
+
+    #[cfg(windows)]
+    fn windows_process(name: &str, command_line: &str) -> super::WindowsCodexProcess {
+        super::WindowsCodexProcess {
+            name: name.to_string(),
+            process_id: 1,
+            parent_process_id: 0,
+            command_line: command_line.to_string(),
+            main_window_title: String::new(),
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn detects_codex_package_chatgpt_gui_root_only() {
+        assert!(super::is_windows_codex_root_process(&windows_process(
+            "ChatGPT.exe",
+            r#""C:\Program Files\WindowsApps\OpenAI.Codex_26.707.3748.0_x64__2p2nqsd0c76g0\app\ChatGPT.exe""#,
+        )));
+        assert!(!super::is_windows_codex_root_process(&windows_process(
+            "ChatGPT.exe",
+            r#""C:\Program Files\WindowsApps\OpenAI.ChatGPT_1.0_x64__2p2nqsd0c76g0\app\ChatGPT.exe""#,
+        )));
+        assert!(!super::is_windows_codex_root_process(&windows_process(
+            "ChatGPT.exe",
+            r#""C:\Program Files\WindowsApps\OpenAI.Codex_26.707.3748.0_x64__2p2nqsd0c76g0\app\ChatGPT.exe" --type=renderer"#,
+        )));
+        assert!(!super::is_windows_codex_root_process(&windows_process(
+            "codex.exe",
+            r#""C:\Program Files\WindowsApps\OpenAI.Codex_26.707.3748.0_x64__2p2nqsd0c76g0\app\resources\codex.exe" app-server"#,
+        )));
     }
 }
 
