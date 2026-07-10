@@ -41,6 +41,10 @@ jobs:
           $config.bundle.createUpdaterArtifacts = $false
           $config.plugins.PSObject.Properties.Remove('updater')
           $config | ConvertTo-Json -Depth 100 | Set-Content -NoNewline -Encoding utf8 $configPath
+          $libPath = 'src-tauri/src/lib.rs'
+          $lib = Get-Content -Raw $libPath
+          $lib = $lib -replace '\s*app\.handle\(\)\s*\r?\n\s*\.plugin\(tauri_plugin_updater::Builder::new\(\)\.build\(\)\)\?;', ''
+          Set-Content -NoNewline -Encoding utf8 $libPath $lib
 
       - name: Build and publish unsigned Windows installers
         uses: tauri-apps/tauri-action@v0
