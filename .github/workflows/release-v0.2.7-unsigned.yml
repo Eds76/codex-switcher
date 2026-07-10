@@ -33,6 +33,15 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install
 
+      - name: Disable updater signing for this release
+        shell: pwsh
+        run: |
+          $configPath = 'src-tauri/tauri.conf.json'
+          $config = Get-Content -Raw $configPath | ConvertFrom-Json
+          $config.bundle.createUpdaterArtifacts = $false
+          $config.plugins.PSObject.Properties.Remove('updater')
+          $config | ConvertTo-Json -Depth 100 | Set-Content -NoNewline -Encoding utf8 $configPath
+
       - name: Build and publish unsigned Windows installers
         uses: tauri-apps/tauri-action@v0
         env:
@@ -43,4 +52,5 @@ jobs:
           generateReleaseNotes: true
           releaseDraft: false
           prerelease: false
+          includeUpdaterJson: false
           args: --target x86_64-pc-windows-msvc
